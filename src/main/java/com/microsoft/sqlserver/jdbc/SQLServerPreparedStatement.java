@@ -1466,7 +1466,8 @@ public class SQLServerPreparedStatement extends SQLServerStatement implements IS
         } else {
             JavaType javaType = JavaType.of(obj);
             if (JavaType.TVP == javaType) {
-                tvpName = getTVPNameIfNull(index, null); // will return null if called from preparedStatement
+                tvpName = extractTvpName(obj);
+                tvpName = getTVPNameIfNull(index, tvpName); // may return null if called from preparedStatement
 
                 if ((null == tvpName) && (obj instanceof ResultSet)) {
                     throw new SQLServerException(SQLServerException.getErrString("R_TVPnotWorkWithSetObjectResultSet"),
@@ -1501,8 +1502,11 @@ public class SQLServerPreparedStatement extends SQLServerStatement implements IS
         if (loggerExternal.isLoggable(java.util.logging.Level.FINER))
             loggerExternal.entering(getClassNameLogging(), "setObject", new Object[] {n, obj, jdbcType});
         checkClosed();
-        if (microsoft.sql.Types.STRUCTURED == jdbcType)
-            tvpName = getTVPNameIfNull(n, null);
+        if (microsoft.sql.Types.STRUCTURED == jdbcType) {
+            tvpName = extractTvpName(obj);
+            tvpName = getTVPNameIfNull(n, tvpName);
+        }
+
         setObject(setterGetParam(n), obj, JavaType.of(obj), JDBCType.of(jdbcType), null, null, false, n, tvpName);
         loggerExternal.exiting(getClassNameLogging(), "setObject");
     }
@@ -2645,6 +2649,15 @@ public class SQLServerPreparedStatement extends SQLServerStatement implements IS
             throw new IllegalArgumentException("Invalid SQL Query.");
         }
         return true;
+    }
+
+    private static String extractTvpName(Object obj) {
+        String tvpName = null;
+        if (obj instanceof SQLServerDataTable) {
+            tvpName = ((SQLServerDataTable) obj).getTvpName();
+        }
+
+        return tvpName;
     }
 
     private final class PrepStmtBatchExecCmd extends TDSCommand {
